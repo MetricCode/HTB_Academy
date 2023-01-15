@@ -37,3 +37,6 @@ To check on powershell commands, we can use this site...
 https://ss64.com/ps/
 ```
 
+
+![image](https://user-images.githubusercontent.com/99975622/212544707-9774ee02-6178-44e1-b052-ce199cf38c4d.png)
+
