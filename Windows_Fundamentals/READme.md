@@ -133,4 +133,68 @@ These permissions can be revoked using the command icacls c:\users /remove joe.
 
 <a href="https://ss64.com/nt/icacls.html" > icacls commands lists</a>
 
+### NTFS vs. Share Permissions
+The Server Message Block protocol (SMB) is used in Windows to connect shared resources like files and printers.
+Share permissions include:
+![image](https://user-images.githubusercontent.com/99975622/212549081-30ebe800-07e8-49ad-9049-93b4a0396f5b.png)
+NTFS Basic permissions
+![image](https://user-images.githubusercontent.com/99975622/212549109-2435b510-0c03-43c3-9646-717ce974783a.png)
+NTFS special permissions
+![image](https://user-images.githubusercontent.com/99975622/212549165-999d8a30-3962-49fe-8c44-fee8976a662b.png)
+Keep in mind that NTFS permissions apply to the system where the folder and files are hosted. Folders created in NTFS inherit permissions from parent folders by default. It is possible to disable inheritance to set custom permissions on parent and subfolders, as we will do later in this module. The share permissions apply when the folder is being accessed through SMB, typically from a different system over the network. This means someone logged in locally to the machine or via RDP can access the shared folder and files by simply navigating to the location on the file system and only need to consider NTFS permissions. The permissions at the NTFS level provide administrators much more granular control over what users can do within a folder or file.
 
+### Creating a Network Share
+- First off, create an empty folder...
+( Most large enterprise environments, shares are created on a Storage Area Network (SAN), Network Attached Storage device (NAS), or a separate partition on drives accessed via a server operating system like Windows Server. If we ever come across shares on a desktop operating system, it will either be a small business or it could be a beachhead system used by a penetration tester or malicious attacker to gather and exfiltrate data.)
+
+- Making the Folder a Share...
+(Go to the folder properties, in the sharing tab, click on advanced sharing. Click on share this folder. Note you can limit the number of users to access the share at once. Note that  there is an access control list (ACL) for shared resources. The ACL contains access control entries (ACEs) which are made up of users and groups. You can set the permissions for everyone , either read,write or both.)
+![image](https://user-images.githubusercontent.com/99975622/212549670-b5294044-852d-4da5-8a8e-436df10eb1f4.png)
+Setting permissions
+![image](https://user-images.githubusercontent.com/99975622/212549696-7b99c9a9-c1e0-46a3-8b43-482879df6797.png)
+And done!
+
+In our case,we are being blocked if we try to connect through our linux system.
+It is also important to note that when a Windows system is part of a workgroup, all netlogon requests are authenticated against that particular Windows system's SAM database. When a Windows system is joined to a Windows Domain environment, all netlogon requests are authenticated against Active Directory.
+
+The primary difference between a workgroup and a Windows Domain in terms of authentication, is with a workgroup the local SAM database is used and in a Windows Domain a centralized network-based database (Active Directory) is used. We must know this information when attempting to logon & authenticate with a Windows system. Consider where the htb-student account is hosted to properly connect to the target.
+
+In terms of the firewall blocking connections, this can be tested by completely deactivating each firewall profile in Windows or by enabling specific predefined inbound firewall rules in the Windows Defender Firewall advanced security settings. Like most firewalls, Windows Defender Firewall permits or denies traffic (access & connection requests in this case) flowing inbound &/or outbound
+
+The different inbound and outbound rules are associated with the different firewall profiles in defender.
+
+Windows Defender Firewall Profiles:
+
+- Public
+- Private
+- Domain
+
+It is a best practice to enable predefined rules or add custom exceptions rather than deactivating the firewall altogether. 
+
+#### Creating a Mounting Point...
+ Once a connection is established with a share, we can create a mount point from our Pwnbox to the Windows 10 target box's file system.
+ 
+ We can create a mounting point if the files that are in the smb shares are super large.
+ In this case, we need to consider the NTFS permissions.
+ ![image](https://user-images.githubusercontent.com/99975622/212554231-4d9bc915-176c-45d1-a10a-b8e20fada3ba.png)
+ 
+ Mounting command...
+ ```
+ sudo mount -t cifs -o username=htb-student,password=Academy_WinFun! //<TARGET_IP>/"Share_Name" /home/user/Desktop/
+ ```
+ If the command doesnt work, we need to install cifs-utils
+ ```
+ sudo apt-get install cifs-utils
+ ```
+ 
+#### Monitoring Shares
+We can use the command 'net share' to see all the available shares in the system.
+ 
+Computer Management is another tool we can use to identify and monitor shared resources on a Windows system.
+
+We can poke around in Shares, Sessions, and Open Files to get an idea of what information this provides us. Should there be a situation where we assist an individual or organization with responding to a breach related to SMB, these are some great places to check and start to understand how the breach may have happened and what may have been left behind.
+
+#### Viewing Share access logs in Event Viewer
+Event Viewer is another good place to investigate actions completed on Windows. Almost every operating system has a logging mechanism and a utility to view the logs that were captured. Know that a log is like a journal entry for a computer, where the computer writes down all the actions that were performed and numerous details associated with that action. We can view the logs created for every action we performed when accessing the Windows 10 target box, as well as when creating, editing and accessing the shared folder.
+
+![image](https://user-images.githubusercontent.com/99975622/212555677-b5bf2cbe-cc4b-40bb-9e7c-f21b09160c00.png)
