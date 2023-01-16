@@ -198,3 +198,52 @@ We can poke around in Shares, Sessions, and Open Files to get an idea of what in
 Event Viewer is another good place to investigate actions completed on Windows. Almost every operating system has a logging mechanism and a utility to view the logs that were captured. Know that a log is like a journal entry for a computer, where the computer writes down all the actions that were performed and numerous details associated with that action. We can view the logs created for every action we performed when accessing the Windows 10 target box, as well as when creating, editing and accessing the shared folder.
 
 ![image](https://user-images.githubusercontent.com/99975622/212555677-b5bf2cbe-cc4b-40bb-9e7c-f21b09160c00.png)
+
+### Windows Services & Processes
+#### Windows Services
+Windows services are managed via the Service Control Manager (SCM) system, accessible via the services.msc MMC add-in.
+This add-in provides a GUI interface for interacting with and managing services and displays information about each installed service. This information includes the service Name, Description, Status, Startup Type, and the user that the service runs under.
+
+It is also possible to query and manage services via the command line using sc.exe using __PowerShell__ cmdlets such as **__Get-Service__**.
+
+This shows the first 2 running services...
+```
+Get-Service | ? {$_.Status -eq "Running"} | select -First 2 |fl
+```
+
+Service statuses can appear as __Running, Stopped, or Paused,__ and they can be set to start manually, automatically, or on a delay at system boot. 
+Services can also be shown in the state of __Starting or Stopping__ if some action has triggered them to either start or stop. 
+
+Windows has three categories of services: __Local Services, Network Services, and System Services.__
+ Services can usually only be created, modified, and deleted by users with administrative privileges.
+ 
+ In Windows, we have some critical system services that cannot be stopped and restarted without a system restart. If we update any file or resource in use by one of these services, we must restart the system.
+ 
+ ![critical_system_services](https://user-images.githubusercontent.com/99975622/212779910-428b2217-8e01-4fcd-a6b2-1879b1d566b9.png)
+  
+ We can find info on other services here:
+ ```
+ https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_components#Services
+ ```
+ 
+#### Processes
+Processes associated with installed applications can often be terminated without causing a severe impact on the operating system. Certain processes are critical and, if terminated, will stop certain components of the operating system from running properly. Some examples include the Windows Logon Application, System, System Idle Process, Windows Start-Up Application, Client Server Runtime, Windows Session Manager, Service Host, and Local Security Authority Subsystem Service (LSASS) process.
+
+#### Local Security Authority Subsystem Service (LSASS)
+__lsass.exe__ is the process that is responsible for enforcing the security policy on Windows systems.
+When a user attempts to log on to the system, this process verifies their log on attempt and creates access tokens based on the user's permission levels.
+#### Sysinternals Tools
+This is a set of portable Windows applications that can be used to administer Windows systems (for the most part without requiring installation). 
+The suite includes tools such as Process Explorer, an enhanced version of Task Manager, and Process Monitor, which can be used to monitor file system, registry, and network activity related to any process running on the system. Some additional tools are TCPView, which is used to monitor internet activity, and PSExec, which can be used to manage/connect to systems via the SMB protocol remotely.
+These tools can be useful for penetration testers to, for example, discover interesting processes and possible privilege escalation paths as well as for lateral movement.
+
+#### Process Explorer
+It is a part of the Sysinternals tool suite.
+This tool can show which handles and DLL processes are loaded when a program runs.
+
+Process Explorer shows a list of currently running processes, and from there, we can see what handles the process has selected in one view or the DLLs and memory-swapped files that have been loaded in another view.
+
+The tool can also be used to analyze parent-child process relationships to see what child processes are spawned by an application and help troubleshoot any issues such as orphaned processed that can be left behind when a process is terminated.
+
+
+
