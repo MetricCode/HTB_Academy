@@ -246,4 +246,112 @@ Process Explorer shows a list of currently running processes, and from there, we
 The tool can also be used to analyze parent-child process relationships to see what child processes are spawned by an application and help troubleshoot any issues such as orphaned processed that can be left behind when a process is terminated.
 
 
+#### Service Permissions
+The first step in realizing the importance of service permissions is simply understanding that they exist and being mindful of them. On server operating systems, critical network services like DHCP and Active Directory Domain Services commonly get installed using the account assigned to the admin performing the install. Part of the install process includes assigning a specific service to run using the credentials and privileges of a designated user, which by default is set within the currently logged-on user context.
 
+For example, if we are logged on as Bob on a server during DHCP install, then that service will be configured to run as Bob unless specified otherwise. What bad things could come of this? Well, what if Bob leaves the organization or gets fired? The typical business practice would be to disable Bob’s account as part of his exit process. In this case, what would happen to DHCP and other services running using Bob’s account? Those services would fail to start. DHCP or Dynamic Host Configuration Protocol is responsible for leasing IP addresses to computers on the network. If this service stops on a Windows DHCP server, clients requesting an IP address will not receive one. This means a service misconfiguration could lead to downtime and loss of productivity. It is highly recommended to create an individual user account to run critical network services. These are referred to as service accounts.
+
+Most services run with LocalSystem privileges by default which is the highest level of access allowed on an individual Windows OS. Not all applications need Local System account-level permissions, so it is beneficial to perform research on a case-by-case basis when considering installing new applications in a Windows environment. It is a good practice to identify applications that can run with the least privileges possible to align with the principle of least privilege.
+
+Notable built-in service accounts in Windows:
+
+- LocalService
+- NetworkService
+- LocalSystem
+
+#### Examining services using sc
+Sc can also be used to configure and manage services. Let's experiment with a few commands.
+```  
+C:\Users\htb-student>sc qc wuauserv
+[SC] QueryServiceConfig SUCCESS
+
+SERVICE_NAME: wuauserv
+        TYPE               : 20  WIN32_SHARE_PROCESS
+        START_TYPE         : 3   DEMAND_START
+        ERROR_CONTROL      : 1   NORMAL
+        BINARY_PATH_NAME   : C:\WINDOWS\system32\svchost.exe -k netsvcs -p
+        LOAD_ORDER_GROUP   :
+        TAG                : 0
+        DISPLAY_NAME       : Windows Update
+        DEPENDENCIES       : rpcss
+        SERVICE_START_NAME : LocalSystem
+```
+The sc qc command is used to query the service. This is where knowing the names of services can come in handy. If we wanted to query a service on a device over the network, we could specify the hostname or IP address immediately after sc.
+```
+C:\Users\htb-student>sc //hostname or ip of box query ServiceName
+```
+We can also use sc to start and stop services.
+
+```  
+C:\Users\htb-student> sc stop wuauserv
+[SC] OpenService FAILED 5:
+Access is denied.
+```
+Notice how we are denied access from performing this action without running it within an administrative context. If we run a command prompt with elevated privileges, we will be permitted to complete this action.
+
+ we can examine service permissions using sc is through the sdshow command.
+ ```
+ C:\WINDOWS\system32> sc sdshow wuauserv
+
+D:(A;;CCLCSWRPLORC;;;AU)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)S:(AU;FA;CCDCLCSWRPWPDTLOSDRCWDWO;;;WD)
+ ```
+This amalgamation of characters crunched together and delimited by opened and closed parentheses is in a format known as the Security Descriptor Definition Language (SDDL).
+
+We may be tempted to read from left to right because that is how the English language is typically written, but it can be much different when interacting with computers. Read the entire security descriptor for the Windows Update (wuauserv) service in this order starting with the first letter and set of parentheses:
+
+As we read the security descriptor, it can be easy to get lost in the seemingly random order of characters, but recall that we are essentially viewing access control entries in an access control list. Each set of 2 characters in between the semi-colons represents actions allowed to be performed by a specific user or group.
+
+;;CCLCSWRPLORC;;;
+
+After the last set of semi-colons, the characters specify the security principal (User and/or Group) that is permitted to perform those actions.
+
+;;;AU
+
+The character immediately after the opening parentheses and before the first set of semi-colons defines whether the actions are Allowed or Denied.
+
+A;;
+
+This entire security descriptor associated with the Windows Update (wuauserv) service has three sets of access control entries because there are three different security principals. Each security principal has specific permissions applied.
+
+![image](https://user-images.githubusercontent.com/99975622/212783402-2915d1d0-78a7-490f-bd93-8a751b68504f.png)
+ The crazy output is a security decryptors
+ Security descriptors identify the object’s owner and a primary group containing a Discretionary Access Control List (DACL) and a System Access Control List (SACL).
+ 
+ Generally, a DACL is used for controlling access to an object, and a SACL is used to account for and log access attempts. This section will examine the DACL, but the same concepts would apply to a SACL.
+ 
+#### Windows Sessions 
+##### Interactive sessions
+ This is where you login physically on to the machine, remotely, or when your creds are entered in a runaas command....
+##### Non Interactive Sessions
+ Non-interactive accounts in Windows differ from standard user accounts as they do not require login credentials. There are 3 types of non-interactive accounts: the Local System Account, Local Service Account, and the Network Service Account. Non-interactive accounts are generally used by the Windows operating system to automatically start services and applications without requiring user interaction. These accounts have no password associated with them and are usually used to start services when the system boots or to run scheduled tasks.
+ 
+ ![image](https://user-images.githubusercontent.com/99975622/212784402-b70db4a6-ecd6-4b8b-aea7-58b16a89de59.png)
+ 
+### Interacting with windows
+ 
+#### CMD
+```
+https://download.microsoft.com/download/5/8/9/58911986-D4AD-4695-BF63-F734CD4DF8F2/ws-commands.pdf
+```
+Note that certain commands have their own help menus, which can be accessed by typing <command> /?. 
+#### Powershell
+PowerShell utilizes cmdlets, which are small single-function tools built into the shell. There are more than 100 core cmdlets, and many additional ones have been written, or we can author our own to perform more complex tasks. PowerShell also supports both simple and complex scripts used for system administration tasks, automation, and more.
+
+Cmdlets are in the form of Verb-Noun. For example, the command Get-ChildItem can be used to list our current directory. Cmdlets also take arguments or flags. We can type Get-ChildItem - and hit the tab key to iterate through the arguments. A command such as Get-ChildItem -Recurse will show us the contents of our current working directory and all subdirectories. Another example would be Get-ChildItem -Path C:\Users\Administrator\Documents to get the contents of another directory. Finally, we can combine arguments such as this to list all subdirectories' contents within another directory recursively: Get-ChildItem -Path C:\Users\Administrator\Downloads -Recurse.
+
+#### Aliases
+Many cmdlets in PowerShell also have aliases. For example, the aliases for the cmdlet Set-Location, to change directories, is either cd or sl. Meanwhile, the aliases for Get-ChildItem are ls and gci. We can view all available aliases by typing Get-Alias.
+
+We can also set up our own aliases with New-Alias and get the alias for any cmdlet with Get-Alias -Name.
+
+```
+New-Alias -Name "Show-Files" Get-ChildItem
+```
+### Execution Policy
+![image](https://user-images.githubusercontent.com/99975622/212785916-d836af9b-6693-4bf2-8b14-d131f0f4b4f2.png)
+
+The execution policy is not meant to be a security control that restricts user actions. A user can easily bypass the policy by either typing the script contents directly into the PowerShell window, downloading and invoking the script, or specifying the script as an encoded command.
+
+```
+Get-ExecutionPolicy -List
+```
