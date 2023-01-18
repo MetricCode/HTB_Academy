@@ -220,7 +220,7 @@ Windows has three categories of services: __Local Services, Network Services, an
  In Windows, we have some critical system services that cannot be stopped and restarted without a system restart. If we update any file or resource in use by one of these services, we must restart the system.
  
  ![critical_system_services](https://user-images.githubusercontent.com/99975622/212779910-428b2217-8e01-4fcd-a6b2-1879b1d566b9.png)
-  
+ 
  We can find info on other services here:
  ```
  https://en.wikipedia.org/wiki/List_of_Microsoft_Windows_components#Services
@@ -244,7 +244,6 @@ This tool can show which handles and DLL processes are loaded when a program run
 Process Explorer shows a list of currently running processes, and from there, we can see what handles the process has selected in one view or the DLLs and memory-swapped files that have been loaded in another view.
 
 The tool can also be used to analyze parent-child process relationships to see what child processes are spawned by an application and help troubleshoot any issues such as orphaned processed that can be left behind when a process is terminated.
-
 
 #### Service Permissions
 The first step in realizing the importance of service permissions is simply understanding that they exist and being mindful of them. On server operating systems, critical network services like DHCP and Active Directory Domain Services commonly get installed using the account assigned to the admin performing the install. Part of the install process includes assigning a specific service to run using the credentials and privileges of a designated user, which by default is set within the currently logged-on user context.
@@ -355,3 +354,177 @@ The execution policy is not meant to be a security control that restricts user a
 ```
 Get-ExecutionPolicy -List
 ```
+### Windows Management Instrumentation.(WMI)
+WMI is a powershell subsystem.
+It provides system administrators with powerful tools for system monitoring.
+Some of the uses for WMI are:
+- Status information for local/remote systems
+- Configuring security settings on remote machines/applications
+- Setting and changing user and group permissions
+- Setting/modifying system properties
+- Code execution
+- Scheduling processes
+- Setting up logging
+
+We can run WMI on the command prompt by typing __wmic__
+
+To list information on the os;
+```
+ wmic os list brief
+```
+<a href="https://docs.microsoft.com/en-us/windows/win32/wmisdk/wmic"> more on the wmic command</a>
+
+We can also use the Invoke-WmiMethod module, which is used to call the methods of WMI objects. A simple example is renaming a file. We can see that the command completed properly because the ReturnValue is set to 0.
+
+### Miscrosoft Management Console
+The MMC can be used to group snap-ins, or administrative tools, to manage hardware, software, and network components within a Windows host. 
+ We can also use MMC to create custom tools and distribute them to users. MMC works with the concept of snap-ins, allowing administrators to create a customized console with only the administrative tools needed to manage several services. These snap-ins can be added to manage both local and remote systems.
+ To start MMC, on the start menu type __mmc__
+ 
+ ![image](https://user-images.githubusercontent.com/99975622/213190176-d033e072-aa69-44a5-8f9f-02c14cea304a.png)
+ 
+ From here, we can browse to File --> Add or Remove Snap-ins, and begin customizing our administrative console.
+ 
+ ![image](https://user-images.githubusercontent.com/99975622/213190766-d747210b-eaee-4a5e-a3a4-c44e12e23ae9.png)
+ 
+ As we begin adding snap-ins, we will be asked if we want to add the snap-in to manage just the local computer or if it will be used to manage another computer on the network.
+ 
+ ![image](https://user-images.githubusercontent.com/99975622/213190891-c06e04bd-a94d-4081-a8dc-f7c7b25725c8.png)
+ 
+Once we have finished adding snap-ins, they will appear on the left-hand side of MMC. From here, we can save the set of snap-ins as a .msc file, so they will all be loaded the next time we open MMC. By default, they are saved in the Windows Administrative Tools directory under the Start menu. Next time we open MMC, we can choose to load any of the views that we have created.
+
+![image](https://user-images.githubusercontent.com/99975622/213191097-c5122ecd-616e-45ff-b084-07236c06ed6c.png)
+
+### Windows Security
+#### Security Identifier (SID)
+Each of the security principals on the system has a unique security identifier (SID). The system automatically generates SIDs. This means that even if, for example, we have two identical users on the system, Windows can distinguish the two and their rights based on their SIDs. SIDs are string values with different lengths, which are stored in the security database. These SIDs are added to the user's access token to identify all actions that the user is authorized to take.
+
+A SID consists of the Identifier Authority and the Relative ID (RID). In an Active Directory (AD) domain environment, the SID also includes the domain SID.
+
+To see your SID;
+```
+PS C:\htb> whoami /user
+
+USER INFORMATION
+----------------
+
+User Name           SID
+=================== =============================================
+ws01\bob S-1-5-21-674899381-4069889467-2080702030-1002
+```
+The SID is broken down into this pattern.
+```
+(SID)-(revision level)-(identifier-authority)-(subauthority1)-(subauthority2)-(etc)
+```
+
+![image](https://user-images.githubusercontent.com/99975622/213196577-1d3fd737-9775-436d-a0f0-9aeb20c18f52.png)
+
+To see the SID of other users;
+```
+Get-LocalUser -name "Username" | select Name,SID 
+```
+### Security Accounts Manager (SAM) and Access Control Entries (ACE)
+SAM grants rights to a network to execute specific processes.
+
+The access rights themselves are managed by Access Control Entries (ACE) in Access Control Lists (ACL). The ACLs contain ACEs that define which users, groups, or processes have access to a file or to execute a process, for example.
+
+The permissions to access a securable object are given by the security descriptor, classified into two types of ACLs: the Discretionary Access Control List (DACL) or System Access Control List (SACL). Every thread and process started or initiated by a user goes through an authorization process. An integral part of this process is access tokens, validated by the Local Security Authority (LSA). In addition to the SID, these access tokens contain other security-relevant information. Understanding these functionalities is an essential part of learning how to use and work around these security mechanisms during the privilege escalation phase.
+
+### User Account Control (UAC)
+User Account Control (UAC) is a security feature in Windows to prevent malware from running or manipulating processes that could damage the computer or its contents. There is the Admin Approval Mode in UAC, which is designed to prevent unwanted software from being installed without the administrator's knowledge or to prevent system-wide changes from being made. Surely you have already seen the consent prompt if you have installed a specific software, and your system has asked for confirmation if you want to have it installed. Since the installation requires administrator rights, a window pops up, asking you if you want to confirm the installation. With a standard user who has no rights for the installation, execution will be denied, or you will be asked for the administrator password. This consent prompt interrupts the execution of scripts or binaries that malware or attackers try to execute until the user enters the password or confirms execution. To understand how UAC works, we need to know how it is structured and how it works, and what triggers the consent prompt. The following diagram, adapted from the <a href= "https://docs.microsoft.com/en-us/windows/security/identity-protection/user-account-control/how-user-account-control-works">source here</a>, illustrates how UAC works.
+
+![image](https://user-images.githubusercontent.com/99975622/213197868-3bfb6c37-0d74-4a15-96d0-c4e522a6f1ea.png)
+
+### Registry
+The Registry is a hierarchical database in Windows critical for the operating system. It stores low-level settings for the Windows operating system and applications that choose to use it. It is divided into computer-specific and user-specific data. We can open the Registry Editor by typing regedit from the command line or Windows search bar.
+
+There are 11 different types of values that can be entered in a subkey.
+
+![image](https://user-images.githubusercontent.com/99975622/213198195-27a0b58d-2056-47b2-a260-4e0115aac6eb.png)
+
+Each folder under Computer is a key. The root keys all start with HKEY. A key such as HKEY-LOCAL-MACHINE is abbreviated to HKLM. HKLM contains all settings that are relevant to the local system. This root key contains six subkeys like SAM, SECURITY, SYSTEM, SOFTWARE, HARDWARE, and BCD, loaded into memory at boot time (except HARDWARE which is dynamically loaded).
+
+The entire system registry is stored in several files on the operating system. You can find these under C:\Windows\System32\Config\.
+
+The user-specific registry hive (HKCU) is stored in the user folder (i.e., C:\Windows\Users\<USERNAME>\Ntuser.dat).
+
+```
+PS C:\htb> gci -Hidden
+
+    Directory: C:\Users\bob
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d--h--         6/25/2020   5:12 PM                AppData
+d--hsl         6/25/2020   5:12 PM                Application Data
+d--hsl         6/25/2020   5:12 PM                Cookies
+d--hsl         6/25/2020   5:12 PM                Local Settings
+d--h--         6/25/2020   5:12 PM                MicrosoftEdgeBackups
+d--hsl         6/25/2020   5:12 PM                My Documents
+d--hsl         6/25/2020   5:12 PM                NetHood
+d--hsl         6/25/2020   5:12 PM                PrintHood
+d--hsl         6/25/2020   5:12 PM                Recent
+d--hsl         6/25/2020   5:12 PM                SendTo
+d--hsl         6/25/2020   5:12 PM                Start Menu
+d--hsl         6/25/2020   5:12 PM                Templates
+-a-h--         8/13/2020   6:01 PM        2883584 NTUSER.DAT
+-a-hs-         6/25/2020   5:12 PM         524288 ntuser.dat.LOG1
+-a-hs-         6/25/2020   5:12 PM        1011712 ntuser.dat.LOG2
+-a-hs-         8/17/2020   5:46 PM        1048576 NTUSER.DAT{53b39e87-18c4-11ea-a811-000d3aa4692b}.TxR.0.regtrans-ms
+-a-hs-         8/17/2020  12:13 PM        1048576 NTUSER.DAT{53b39e87-18c4-11ea-a811-000d3aa4692b}.TxR.1.regtrans-ms
+-a-hs-         8/17/2020  12:13 PM        1048576 NTUSER.DAT{53b39e87-18c4-11ea-a811-000d3aa4692b}.TxR.2.regtrans-ms
+-a-hs-         8/17/2020   5:46 PM          65536 NTUSER.DAT{53b39e87-18c4-11ea-a811-000d3aa4692b}.TxR.blf
+-a-hs-         6/25/2020   5:15 PM          65536 NTUSER.DAT{53b39e88-18c4-11ea-a811-000d3aa4692b}.TM.blf
+-a-hs-         6/25/2020   5:12 PM         524288 NTUSER.DAT{53b39e88-18c4-11ea-a811-000d3aa4692b}.TMContainer000000000
+                                                  00000000001.regtrans-ms
+-a-hs-         6/25/2020   5:12 PM         524288 NTUSER.DAT{53b39e88-18c4-11ea-a811-000d3aa4692b}.TMContainer000000000
+                                                  00000000002.regtrans-ms
+---hs-         6/25/2020   5:12 PM             20 ntuser.ini
+```
+
+### Run and RunOnce Registry Keys
+There are also so-called registry hives, which contain a logical group of keys, subkeys, and values to support software and files loaded into memory when the operating system is started or a user logs in. These hives are useful for maintaining access to the system. These are called Run and RunOnce registry keys.
+
+The Windows registry includes the following four keys:
+
+ ``` 
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce
+```
+Here is an example of the HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run key while logged in to a system.
+  
+```
+PS C:\htb> reg query HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run
+
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run
+    SecurityHealth    REG_EXPAND_SZ    %windir%\system32\SecurityHealthSystray.exe
+    RTHDVCPL    REG_SZ    "C:\Program Files\Realtek\Audio\HDA\RtkNGUI64.exe" -s
+    Greenshot    REG_SZ    C:\Program Files\Greenshot\Greenshot.exe
+```
+Here is an example of the HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run showing applications running under the current user while logged in to a system.
+
+```  
+PS C:\htb> reg query HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+    OneDrive    REG_SZ    "C:\Users\bob\AppData\Local\Microsoft\OneDrive\OneDrive.exe" /background
+    OPENVPN-GUI    REG_SZ    C:\Program Files\OpenVPN\bin\openvpn-gui.exe
+    Docker Desktop    REG_SZ    C:\Program Files\Docker\Docker\Docker Desktop.exe
+```
+
+### Local Group Policy
+Group Policy allows administrators to set, configure, and adjust a variety of settings. In a domain environment, group policies are pushed down from a Domain Controller onto all domain-joined machines that Group Policy objects (GPOs) are linked to. These settings can also be defined on individual machines using Local Group Policy.
+
+Group Policy can be configured locally, in both domain environments and non-domain environments. Local Group Policy can be used to tweak certain graphical and network settings that are otherwise not accessible via the Control Panel. It can also be used to lock down an individual computer policy with stringent security settings, such as only allowing certain programs to be installed/run or enforcing strict user account password requirements.
+
+We can open the Local Group Policy Editor by opening the Start menu and typing gpedit.msc. The editor is split into two categories under Local Computer Policy - Computer Configuration and User Configuration.
+
+![image](https://user-images.githubusercontent.com/99975622/213200534-327191f5-dbfa-4986-9dc9-0707a9f57992.png)
+
+For example, we can open the Local Computer Policy to enable Credential Guard by enabling the setting Turn On Virtualization Based Security. Credential Guard is a feature in Windows 10 that protects against credential theft attacks by isolating the operating system's LSA process.
+
+![image](https://user-images.githubusercontent.com/99975622/213200709-3e64143f-818c-4e27-964e-217d7f0ea27a.png)
+We can also enable fine-tuned account auditing and configure AppLocker from the Local Group Policy Editor. It is worth exploring Local Group Policy and learning about the wide variety of ways it can be used to lock down a Windows system.
+
