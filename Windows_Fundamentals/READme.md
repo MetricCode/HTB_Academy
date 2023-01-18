@@ -528,3 +528,7 @@ For example, we can open the Local Computer Policy to enable Credential Guard by
 ![image](https://user-images.githubusercontent.com/99975622/213200709-3e64143f-818c-4e27-964e-217d7f0ea27a.png)
 We can also enable fine-tuned account auditing and configure AppLocker from the Local Group Policy Editor. It is worth exploring Local Group Policy and learning about the wide variety of ways it can be used to lock down a Windows system.
 
+
+### Socials
+@instagram:https://instagram.com/Metric_r00t
+<br> Twitter:https://twitter.com/M3tr1c_root
